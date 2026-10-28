@@ -1,0 +1,59 @@
+{
+  "name": "ui-verification-mcp",
+  "version": "0.0.18",
+  "description": "",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ui-verification-mcp": "bin/ui-verification-mcp.cjs"
+  },
+  "exports": {},
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "vite build",
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "test:real": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/",
+    "test:real:phone": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common",
+    "test:real:pc": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common tests/realCases/pc",
+    "test:emu:common": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/customSamples",
+    "test:emu:pc": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/customSamples tests/realCases/pc/preset tests/realCases/pc/customSamples",
+    "test:emu:tripleFold": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/customSamples tests/realCases/tripleFold/preset tests/realCases/tripleFold/customSamples",
+    "test:emu:wideFold": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/customSamples tests/realCases/wideFold/preset tests/realCases/wideFold/customSamples",
+    "test:emu:2in1Foldable": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/customSamples tests/realCases/2in1Foldable",
+    "test:emu:devSelfTest": "tsx tests/scripts/runAndAnalyze.ts tests/realCases/common/preset tests/realCases/common/published tests/realCases/common/customSamples/driverExam tests/realCases/common/customSamples/musicPlayer tests/realCases/common/customSamples/oh-bill tests/realCases/common/customSamples/readingApp",
+    "prelint": "tsc --noEmit",
+    "lint": "eslint . --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts --fix"
+  },
+  "keywords": [],
+  "author": "",
+  "dependencies": {
+    "ajv": "8.18.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.3",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/node": "24.10.1",
+    "eslint": "^9.39.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.2.6",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^17.4.0",
+    "openai": "^6.39.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

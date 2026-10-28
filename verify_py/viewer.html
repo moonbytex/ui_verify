@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>UI Verify 本地复现</title>
+<style>
+body{font-family:system-ui,"Microsoft YaHei",sans-serif;margin:0;background:#f4f6f9;color:#182431}
+header{position:sticky;top:0;background:#0a59f7;color:#fff;padding:10px 18px;display:flex;gap:16px;align-items:center;z-index:2}
+header b{font-size:18px}
+#res{margin-left:auto;font-weight:600}
+main{padding:16px;display:flex;flex-direction:column;gap:10px;max-width:1100px;margin:auto}
+.ev{background:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 1px 3px #0001}
+.t{color:#888;font-size:12px;margin-right:8px}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;margin-right:6px}
+.llm{background:#6c5ce7}.act{background:#00b894}.fake{background:#fdcb6e;color:#333}
+.img{background:#636e72}.info{background:#74b9ff}
+.st-normal{background:#0984e3}.st-completed{background:#00b894}
+.st-abnormal{background:#e17055}.st-error{background:#d63031}
+.imgs{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.imgs img{height:320px;border:1px solid #ddd;border-radius:6px}
+pre{white-space:pre-wrap;margin:6px 0 0;font-size:13px;background:#f7f7f9;padding:6px;border-radius:6px}
+</style>
+</head>
+<body>
+<header><b>UI Verify 本地复现</b><span id="prog"></span><span id="res">运行中…</span></header>
+<main id="list"></main>
+<script>
+let shown = 0;
+function esc(s) {
+  return String(s ?? '').replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+}
+function renderOne(e) {
+  let h = `<span class="t">${e.time}</span>`;
+  switch (e.kind) {
+    case 'call':
+      return h + `<span class="tag info">开始</span><pre>${esc(e.args.join('\n'))}</pre>`;
+    case 'llm':
+      return h + `<span class="tag llm">${esc(e.agent)}</span>` +
+        (e.tool ? `调用 <b>${esc(e.tool.name)}</b> <code>${esc(e.tool.arguments)}</code>` : '(无工具调用)') +
+        (e.content ? `<pre>${esc(e.content)}</pre>` : '');
+    case 'action': {
+      const rest = {...e}; ['kind', 'time', 'name', 'reason'].forEach(k => delete rest[k]);
+      return h + `<span class="tag act">执行 ${esc(e.name)}</span><code>${esc(JSON.stringify(rest))}</code>` +
+        (e.reason ? `<pre>${esc(e.reason)}</pre>` : '');
+    }
+    case 'fake_action':
+      return h + `<span class="tag fake">复用历史步骤 ${esc(e.name)}</span>`;
+    case 'status':
+      document.getElementById('prog').textContent = `进度 ${e.progress}/${e.total}`;
+      return h + `<span class="tag st-${e.status}">${e.status}</span>步骤 ${e.progress}/${e.total}` +
+        `（abnormal 重试 ${e.abnormalRetryCount ?? 0}）<pre>${esc(e.reason)}</pre>`;
+    case 'image':
+      return h + `<span class="tag img">截图 ×${e.files.length}</span><div class="imgs">` +
+        e.files.map(f => `<a href="${f}" target="_blank"><img src="${f}"></a>`).join('') + '</div>';
+    case 'info':
+      return h + `<span class="tag info">信息</span>${esc(e.text)}`;
+    case 'result': {
+      const r = e.result;
+      document.getElementById('res').textContent = r.success ? '✔ 验证通过' : '✘ 验证失败';
+      return h + `<span class="tag ${r.success ? 'st-completed' : 'st-error'}">${r.success ? '验证通过' : '验证失败'}</span>` +
+        `<pre>${esc(JSON.stringify(r, null, 2))}</pre>`;
+    }
+  }
+  return h + esc(JSON.stringify(e));
+}
+function render(evs) {
+  const list = document.getElementById('list');
+  for (; shown < evs.length; shown++) {
+    const d = document.createElement('div');
+    d.className = 'ev';
+    d.innerHTML = renderOne(evs[shown]);
+    list.appendChild(d);
+    d.scrollIntoView({block: 'end'});
+  }
+}
+function poll() {
+  fetch('events.json?' + Date.now()).then(r => r.json()).then(j => render(j.events)).catch(() => {
+    const s = document.createElement('script');
+    s.src = 'events.js?' + Date.now();
+    s.onload = () => { render(window.__EVENTS__ || []); s.remove(); };
+    document.head.appendChild(s);
+  });
+}
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

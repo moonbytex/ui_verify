@@ -1,0 +1,29 @@
+.qpane { animation: fadein .3s; }
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+.hitem { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; font-size: 13px; background: #0e1530; cursor: pointer; transition: border-color .2s, background .2s; }
+.hitem:hover, .hitem.hl { border-color: var(--brand); background: #16205a; }
+.hitem .idx { color: var(--muted); font-family: Consolas, monospace; width: 26px; flex: none; }
+.hitem .ty { font-family: Consolas, monospace; font-weight: 700; width: 56px; flex: none; }
+.hitem .body { color: #cbd5e1; font-family: Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+.msg { display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; transition: border-color .2s, background .2s; }
+.msg.hl { border-color: var(--brand); background: #16205a; }
+.msg .role { flex: none; width: 76px; font-family: Consolas, monospace; font-size: 12px; padding: 2px 6px; border-radius: 6px; text-align: center; height: fit-content; }
+.r-system { background: #334155; color: #e2e8f0; }
+.r-user { background: #164e63; color: #a5f3fc; }
+.r-assistant { background: #4c1d95; color: #ddd6fe; }
+.r-tool { background: #713f12; color: #fde68a; }
+.msg .txt { color: #cbd5e1; font-family: Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
+.msg .from { color: #64748b; font-size: 11px; }
+.msg.skip .txt { color: #64748b; text-decoration: line-through; }
+.filmstrip { display: flex; gap: 8px; min-height: 120px; padding: 12px 0; overflow-x: auto; align-items: flex-end; }
+.frame { flex: none; width: 70px; border-radius: 8px; border: 2px solid var(--line); background: #0e1530; padding: 6px; font-size: 11px; text-align: center; transition: all .3s; position: relative; }
+.frame .scr { height: 58px; border-radius: 5px; margin-bottom: 4px; display: grid; place-items: center; font-size: 11px; color: #fff; }
+.frame .d { font-family: Consolas, monospace; color: var(--muted); font-size: 10.5px; }
+.frame.old .scr { background: #334155; }
+.frame.new .scr { background: #1d4ed8; }
+.frame.toast .scr { background: #b45309; }
+.frame.drop { opacity: .25; border-style: dashed; }
+.frame.key { border-color: var(--ok); box-shadow: 0 0 14px rgba(34,197,94,.35); }
+.frame.key::after { content: "关键帧"; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 10px; background: var(--ok); color: #052e16; padding: 0 6px; border-radius: 99px; white-space: nowrap; }
+.fs-step { margin-top: 10px; padding: 12px 14px; border-radius: 10px; background: #070b18; border: 1px solid var(--line); font-size: 13.5px; color: #cbd5e1; min-height: 70px; }
+.fs-step b { color: var(--cyan); }

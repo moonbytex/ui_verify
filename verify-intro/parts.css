@@ -1,0 +1,31 @@
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+.card { position: relative; background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; transition: transform .2s, border-color .2s; }
+.card:hover { transform: translateY(-4px); border-color: var(--brand); }
+.card p { color: var(--muted); margin: 0; font-size: 14.5px; }
+.card .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; margin-bottom: 12px; background: rgba(79,140,255,.15); }
+.card .hl { display: inline-block; margin-top: 12px; font-size: 12.5px; color: var(--cyan); border: 1px dashed #2f4a8a; padding: 2px 10px; border-radius: 8px; }
+.card.star { border-color: #5b4bd6; box-shadow: 0 10px 40px rgba(139,92,246,.18); }
+.card.star::after { content: "核心特点"; position: absolute; top: 14px; right: 14px; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: linear-gradient(90deg, var(--brand), var(--brand2)); color: #fff; }
+
+.arch { display: grid; grid-template-columns: 1fr 100px 1.5fr 100px 1fr; align-items: center; }
+.zone { border: 1px solid var(--line); border-radius: var(--r); padding: 18px; background: rgba(21,29,59,.75); }
+.zone h4 { margin: 0; font-size: 16px; }
+.zone .where { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.box { border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 13.5px; border: 1px solid; }
+.box small { display: block; color: var(--muted); font-size: 12px; }
+.b-cli { border-color: #2b5ab8; background: rgba(79,140,255,.10); }
+.b-mcp { border-color: #6d4bd8; background: rgba(139,92,246,.10); }
+.b-dev { border-color: #157a52; background: rgba(34,197,94,.08); }
+.b-llm { border-color: #a1477a; background: rgba(244,114,182,.10); }
+.wire { font-size: 11.5px; color: var(--muted); text-align: center; padding: 0 4px; }
+.ln { height: 2px; background: linear-gradient(90deg, transparent, var(--brand), transparent); margin: 6px 0; position: relative; overflow: hidden; }
+.ln::after { content: ""; position: absolute; left: -30%; top: 0; width: 30%; height: 100%; background: #fff; opacity: .85; animation: flow 2s linear infinite; }
+.ln.rev::after { animation-direction: reverse; }
+@keyframes flow { to { left: 100%; } }
+.llm-row { display: grid; grid-template-columns: 1fr 100px 1.5fr 100px 1fr; }
+.llm-row > div { grid-column: 3; text-align: center; }
+.vl { width: 2px; height: 34px; margin: 0 auto; background: linear-gradient(180deg, var(--brand2), var(--pink)); }
+@media (max-width: 900px) {
+  .arch, .llm-row { grid-template-columns: 1fr; }
+  .llm-row > div { grid-column: 1; }
+}

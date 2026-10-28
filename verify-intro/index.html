@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>devecocli verify · 自然语言驱动的 HarmonyOS UI 意图校验</title>
+<link rel="stylesheet" href="base.css" />
+<link rel="stylesheet" href="parts.css" />
+<link rel="stylesheet" href="loop.css" />
+<link rel="stylesheet" href="deep.css" />
+</head>
+<body>
+<nav><div class="inner">
+  <div class="logo"><span class="grad">devecocli verify</span></div>
+  <a href="#features">核心特点</a>
+  <a href="#arch">整体架构</a>
+  <a href="#mcp">MCP 协议</a>
+  <a href="#agents">多智能体</a>
+  <a href="#loop">主循环</a>
+  <a href="#vision">视觉定位</a>
+  <a href="#history">共享历史</a>
+  <a href="#memory">步骤记忆</a>
+  <a href="#deep">深入理解</a>
+  <a href="#usage">使用方式</a>
+</div></nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">DevEco CLI · UI 意图校验 · 基于多模态大模型</div>
+  <h1>写一句话<br/><span class="grad">AI 替你点完整个 App</span></h1>
+  <p class="sub">
+    <code>devecocli verify</code> 把自然语言写的测试计划交给一组多模态 AI 智能体。它们只看截图就能在真机或模拟器上
+    点击、滑动、输入、旋转、折叠，并逐步判断界面是否符合预期，最后给出结论、成功步骤、失败步骤、日志和截图。
+  </p>
+  <div class="term">
+    <div class="bar"><i style="background:#ef4444"></i><i style="background:#f59e0b"></i><i style="background:#22c55e"></i></div>
+    <pre id="typing"></pre>
+  </div>
+  <div class="stats">
+    <div class="stat"><b class="grad">0 行</b><span>测试代码，只写自然语言</span></div>
+    <div class="stat"><b class="grad">6 个</b><span>协作智能体，同一进程</span></div>
+    <div class="stat"><b class="grad">2 路</b><span>每轮并行：判状态 + 想动作</span></div>
+    <div class="stat"><b class="grad">0 依赖</b><span>不读控件树，纯视觉定位</span></div>
+    <div class="stat"><b class="grad">≤30 轮</b><span>防死循环上限</span></div>
+  </div>
+</section>
+
+<section id="features">
+  <h2>核心特点 <span class="tag">WHY IT'S DIFFERENT</span></h2>
+  <p class="lead">传统 UI 自动化要写脚本，要按控件 id 找元素，界面一改脚本就坏。verify 把这些都交给模型去看、去想、去判断，开发者只需要描述"做什么、期望看到什么"。</p>
+  <div class="grid">
+    <div class="card star"><div class="ico">💬</div><h3>自然语言即测试用例</h3>
+      <p>测试计划就是一段中文（最长 3000 字），写清每一步的操作和预期结果。不需要录制，也不需要写选择器或断言代码。</p>
+      <span class="hl">--test-plan "点击登录→进入首页→看到商城入口"</span></div>
+    <div class="card star"><div class="ico">👁️</div><h3>纯视觉定位，不依赖控件树</h3>
+      <p>模型只看截图，直接给出点击坐标，再由程序换算成物理像素交给 <code>uitest</code>。重构布局、换 id、用 Canvas 或 Web 自绘的界面，都照样能测。</p>
+      <span class="hl">999×999 归一化坐标 → clamp 到屏幕像素</span></div>
+    <div class="card star"><div class="ico">⚡</div><h3>判状态与想动作并行</h3>
+      <p>每一轮 StatusAgent 判断当前状态，ActionAgent 同时预先想好下一步。状态是 normal 就直接执行，等待时间几乎减半；状态是 abnormal 才丢掉预取的动作重新规划。</p>
+      <span class="hl">Promise 并行 · 投机执行</span></div>
+    <div class="card star"><div class="ico">🧠</div><h3>多智能体分工</h3>
+      <p>计划校验、历史匹配、动作决策、状态判断、回放、总结，由 6 个智能体分别负责。它们共享同一份历史数组，每个智能体再按自己的视角把历史翻译成对话。</p>
+      <span class="hl">Validation · Matcher · Action · Status · Fake · Summary</span></div>
+    <div class="card"><div class="ico">🔁</div><h3>自愈与重试</h3>
+      <p>点偏了、有弹窗挡着，会判成 abnormal，然后基于最新截图重新定位。同一步最多重试 3 次，总共最多 30 轮。连续判断原地踏步时会提醒模型重新看计划和截图。</p>
+      <span class="hl">abnormal ×3 → error</span></div>
+    <div class="card"><div class="ico">💾</div><h3>步骤记忆 + 像素差回放</h3>
+      <p>测过的路径会存成 step memory。下次遇到相似的计划时，FakeActionAgent 不调模型，直接重放这些步骤；画面和历史差异超过 1% 时，再交还给模型接管。</p>
+      <span class="hl">省 token · 提速</span></div>
+    <div class="card"><div class="ico">🎞️</div><h3>多帧稳定截图</h3>
+      <p>后台一直截图。操作之后等画面稳定，最多 3 秒，再挑出有变化的关键帧（最多 6 帧）发给模型，所以 Toast、短暂弹出的弹窗也能捕捉到。</p>
+      <span class="hl">像素差 · 去状态栏干扰</span></div>
+    <div class="card"><div class="ico">📱</div><h3>多设备 + 模拟器专属能力</h3>
+      <p>支持手机、平板、2in1 和折叠屏。在模拟器上可以快速截取帧缓冲、旋转屏幕、切换折叠态，并自动修正截图方向。</p>
+      <span class="hl">setRotation · setFoldState</span></div>
+    <div class="card"><div class="ico">🧩</div><h3>MCP 标准接口，AI 编程闭环</h3>
+      <p>引擎本身就是一个 MCP Server，CLI 只是其中一个客户端。Cursor 等 AI 编程工具可以直接调用 <code>verifyUI</code>，走完"写代码 → 构建 → 校验 → 修复"的循环。</p>
+      <span class="hl">JSON-RPC 2.0 · stdio</span></div>
+  </div>
+</section>
+
+<section id="arch">
+  <h2>整体架构 <span class="tag">4 个运行位置</span></h2>
+  <p class="lead">一次 verify 会经过四个地方。<b>CLI 本身不看截图，也不点屏幕</b>。它只负责准备参数、拉起 MCP 子进程、显示进度和缓存结果。看图、决策、操作设备，全部在 MCP 进程里完成。</p>
+  <div class="arch">
+    <div class="zone">
+      <h4>① devecocli 进程</h4><div class="where">本机 · 入口与编排</div>
+      <div class="box b-cli">verify.ts<small>解析参数、合并计划（≤3000 字）</small></div>
+      <div class="box b-cli">config<small>读取并解密模型配置</small></div>
+      <div class="box b-cli">device.ts<small>hdc list targets → 序列号</small></div>
+      <div class="box b-cli">mcp-session.ts<small>spawn 子进程 + JSON-RPC</small></div>
+      <div class="box b-cli">结果缓存<small>cache/&lt;id&gt;/verify.log + screenshots</small></div>
+    </div>
+    <div class="wire">stdin/stdout<div class="ln"></div>JSON-RPC 2.0<div class="ln rev"></div>progress 通知</div>
+    <div class="zone">
+      <h4>② ui-verification-mcp 进程</h4><div class="where">本机另一个 Node 进程 · 所有智能体都在这里</div>
+      <div class="box b-mcp">MCP Server<small>verifyUI · getLog · saveScreenshot</small></div>
+      <div class="box b-mcp">多智能体调度器<small>Validation / Matcher / Action / Status / Fake / Summary</small></div>
+      <div class="box b-mcp">共享历史数组<small>image · status · action · log</small></div>
+      <div class="box b-mcp">截图采集器 + 定位器<small>像素差、稳定帧、坐标换算</small></div>
+      <div class="box b-mcp">设备执行层<small>hdc / Emulator 命令封装、任务锁、faultlog</small></div>
+    </div>
+    <div class="wire">hdc shell<div class="ln"></div>uitest / aa / hidumper<div class="ln rev"></div>截图回传</div>
+    <div class="zone">
+      <h4>④ 设备 / 模拟器</h4><div class="where">HarmonyOS · 被测对象</div>
+      <div class="box b-dev">uitest uiInput<small>点击、滑动、输入、按键</small></div>
+      <div class="box b-dev">aa start / force-stop<small>启动、URI 跳转</small></div>
+      <div class="box b-dev">snapshot_display<small>真机截图</small></div>
+      <div class="box b-dev">Emulator.exe<small>帧缓冲截图、旋转、折叠</small></div>
+      <div class="box b-dev">hilog / faultlogger<small>日志、崩溃</small></div>
+    </div>
+  </div>
+  <div class="llm-row"><div><div class="vl"></div><span style="font-size:12px;color:var(--muted)">HTTPS · {baseUrl}/chat/completions · OpenAI 兼容 tools</span><div class="vl"></div></div></div>
+  <div class="llm-row"><div class="zone">
+    <h4>③ 多模态模型服务</h4><div class="where">verify init 配置的 baseUrl · 不运行在设备上</div>
+    <div class="box b-llm">看截图 → 每次只返回 <b>一个</b>工具调用<small>参数经 JSON Schema 校验，不合法时把错误回传给模型，最多重试 3 次</small></div>
+  </div></div>
+</section>
+
+<section id="mcp">
+  <h2>MCP 交互 <span class="tag">Model Context Protocol</span></h2>
+  <p class="lead">verify 的引擎 <code>ui-verification-mcp</code> 是一个标准 stdio MCP Server。CLI 找到依赖包里的 <code>bin/ui-verification-mcp.cjs</code>，用当前 Node 拉起它，再由它启动 <code>dist/uiVerification.mjs</code>，标准输入输出原样转接。之后 CLI 在 stdin/stdout 上一行一条 JSON-RPC 和它交谈。点击下方各步骤查看报文。</p>
+  <div class="loop">
+    <div class="stage">
+      <div class="controls" id="mcpSteps" style="margin-top:0">
+        <button data-i="0" class="active">0 spawn</button>
+        <button data-i="1">1 initialize</button>
+        <button data-i="2">2 tools/call verifyUI</button>
+        <button data-i="3">3 progress</button>
+        <button data-i="4">4 result</button>
+        <button data-i="5">5 getLog / saveScreenshot</button>
+      </div>
+      <pre class="formula" id="mcpMsg" style="margin-top:14px;min-height:260px"></pre>
+    </div>
+    <div>
+      <div class="tbl"><table>
+        <tr><th>工具</th><th>作用</th></tr>
+        <tr><td><code>verifyUI</code></td><td>完整跑一遍测试，返回 <code>success / reason / successPart / failPart / id</code></td></tr>
+        <tr><td><code>getLog</code></td><td>按 id 读取本次任务收集的 hilog，数据在进程内存里</td></tr>
+        <tr><td><code>saveScreenshot</code></td><td>按 id 把内存里的截图写到指定目录</td></tr>
+      </table></div>
+      <h3 style="margin-top:22px">设计要点</h3>
+      <ul style="color:var(--muted);font-size:14px;padding-left:18px">
+        <li><b style="color:var(--text)">密钥不进参数</b>：baseUrl、API Key、模型名、hdc 路径都通过子进程环境变量 <code>UI_VERIFY_*</code> 传递，不出现在 JSON-RPC 报文里。</li>
+        <li><b style="color:var(--text)">进度实时可见</b>：每次判完状态，MCP 推送一条 <code>notifications/progress</code>，CLI 把它显示成 spinner 上的 <code>3/5 原因</code>。</li>
+        <li><b style="color:var(--text)">超时与取消</b>：一次调用最多等 10 分钟。按 Ctrl+C 时，Windows 上用 <code>taskkill /t /f</code> 结束整棵进程树。</li>
+        <li><b style="color:var(--text)">设备任务锁</b>：在设备 <code>/data/local/tmp</code> 写锁文件，每 10 秒刷新一次，防止多个任务同时操作同一台设备。</li>
+        <li><b style="color:var(--text)">一个引擎，两种入口</b>：CLI 用户执行 <code>devecocli verify</code>；AI IDE 把它配置成 MCP 后直接调用 <code>verifyUI</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="agents">
+  <h2>多智能体 <span class="tag">6 AGENTS · 1 PROCESS</span></h2>
+  <p class="lead">六个智能体都是 MCP 进程里的类，<b>没有各自独立的进程</b>，靠共享同一份历史数组协作。模型每次只能调用一个"出口工具"，所以每个智能体的输出都是结构化、可校验的。</p>
+  <div class="agents">
+    <div class="agent" style="border-top:3px solid #22d3ee"><h3>InputValidationAgent</h3>
+      <div class="when">⏱ 任务开始 · 与 Home、匹配并行</div><div class="tool">⇢ get_input_validation_result</div>
+      <p>结合设备能力清单（设备类型、是否模拟器、是否可折叠、支持哪些操作），判断这份计划能不能在当前设备上执行。不通过就直接失败，返回 <code>[计划校验失败]</code>。</p></div>
+    <div class="agent" style="border-top:3px solid #a78bfa"><h3>InputMatcherAgent</h3>
+      <div class="when">⏱ freshStart=true 且有同设备、同包名的记忆</div><div class="tool">⇢ get_match_result</div>
+      <p>把用户计划和已保存的计划列表对比，选出一份可以重放的历史，没有合适的就不用。</p></div>
+    <div class="agent" style="border-top:3px solid #f472b6"><h3>FakeActionAgent</h3>
+      <div class="when">⏱ 匹配成功时替代第一轮 Action</div><div class="tool">⇢ 不调用模型</div>
+      <p>按原来的坐标和时间间隔重放动作。新截图与旧截图的像素差超过 1% 就停止回放，转入正常循环。</p></div>
+    <div class="agent" style="border-top:3px solid #4f8cff"><h3>ActionAgent</h3>
+      <div class="when">⏱ 每一轮 · 与 Status 并行</div><div class="tool">⇢ tap / swipe / inputText / startApp / setRotation …</div>
+      <p>根据计划、历史截图和以往动作给出下一步，也可以选择本轮不操作。硬约束：<code>touchDown</code> 之后必须紧跟 <code>touchUp</code>。</p></div>
+    <div class="agent" style="border-top:3px solid #22c55e"><h3>StatusAgent</h3>
+      <div class="when">⏱ 每一轮 · 与 Action 并行</div><div class="tool">⇢ returnStatus</div>
+      <p>对比计划和截图，判断为 <code>normal / abnormal / completed / error</code>，并给出 progress/total 和原因。在模拟器上必须按物理方向判断横竖屏。</p></div>
+    <div class="agent" style="border-top:3px solid #f59e0b"><h3>SummaryAgent</h3>
+      <div class="when">⏱ completed 或 error 之后</div><div class="tool">⇢ get_summary_result</div>
+      <p>阅读全部历史，写出 <code>successPart</code> 和 <code>failPart</code>，形成人能看懂的测试报告。</p></div>
+  </div>
+  <h3 style="margin-top:28px">同一份历史，不同的视角</h3>
+  <div class="tbl"><table>
+    <tr><th>历史元素</th><th>ActionAgent 看到</th><th>StatusAgent 看到</th><th>SummaryAgent 看到</th></tr>
+    <tr><td>image</td><td>user · 多帧 image_url</td><td>user · 多帧 image_url</td><td>每帧一条 user</td></tr>
+    <tr><td>action</td><td><b>assistant</b> tool_calls + tool "Action executed"</td><td>user 文本"思考…；执行操作…"</td><td>拼进文字</td></tr>
+    <tr><td>status</td><td>user 文本"当前状态：…"</td><td><b>assistant</b> returnStatus + tool "received"</td><td>拼进文字</td></tr>
+    <tr><td>log (hilog)</td><td>不出现</td><td>不出现</td><td>不出现</td></tr>
+  </table></div>
+  <p class="lead" style="margin-top:12px">每个智能体都把<b>自己的产出</b>当作 assistant 的发言，把其他智能体的产出当作 user 提供的信息，所以对每个模型来说，对话都是一条连贯的"自己的思考链"。上下文里最多保留 3 条带图消息、12 张图，更早的截图替换成"已省略历史截图"。</p>
+</section>
+
+<section id="loop">
+  <h2>主循环：并行 + 投机执行 <span class="tag">INTERACTIVE</span></h2>
+  <p class="lead">进入主循环后，每一轮先抓一批稳定截图，然后 <b>StatusAgent 和 ActionAgent 同时向模型提问</b>。状态判完后才决定是否采用已经想好的动作。点击下面的按钮模拟不同分支。</p>
+  <div class="loop">
+    <div class="stage">
+      <div class="lane"><div class="name">截图采集</div><div class="track"><div class="seg" id="s-cap" style="left:0;width:22%;background:#0e7490">稳定帧 ≤3s</div><div class="seg" id="s-cap2" style="left:80%;width:20%;background:#0e7490">重新取图</div></div></div>
+      <div class="lane"><div class="name">StatusAgent</div><div class="track"><div class="seg" id="s-st" style="left:23%;width:34%;background:#15803d">returnStatus</div></div></div>
+      <div class="lane"><div class="name">ActionAgent</div><div class="track"><div class="seg" id="s-act" style="left:23%;width:30%;background:#1d4ed8">预取动作</div><div class="seg" id="s-act2" style="left:58%;width:22%;background:#1d4ed8">重新规划</div></div></div>
+      <div class="lane"><div class="name">设备执行</div><div class="track"><div class="seg" id="s-exe" style="left:58%;width:22%;background:#7c3aed">uitest + 等变化</div></div></div>
+      <div class="lane"><div class="name">SummaryAgent</div><div class="track"><div class="seg" id="s-sum" style="left:58%;width:42%;background:#b45309">总结 + faultlog</div></div></div>
+      <div class="controls">
+        <button data-b="normal">▶ normal</button>
+        <button data-b="abnormal">▶ abnormal</button>
+        <button data-b="completed">▶ completed</button>
+        <button data-b="error">▶ error</button>
+        <button data-b="auto">⟳ 自动演示</button>
+      </div>
+      <div class="log" id="loopLog"></div>
+    </div>
+    <div class="status-pills">
+      <div class="pill p-normal"><b>✅ normal</b>界面符合预期。直接执行<b style="display:inline">已预取</b>的动作，普通动作最多等 4 秒直到画面变化，输入类动作固定等 0.8 秒。</div>
+      <div class="pill p-abn"><b>⚠️ abnormal</b>预取的动作作废。异常原因写入历史，ActionAgent 基于最新截图重新定位，禁止沿用旧坐标。连续 3 次就升级为 error。</div>
+      <div class="pill p-done"><b>🎉 completed</b>SummaryAgent 总结，检查期间新增的 faultlog，补上未松开的 touchUp，返回 success。</div>
+      <div class="pill p-err"><b>❌ error</b>同样总结、检查 faultlog。满足条件时把走通的步骤存成 step memory，供下次重放。</div>
+      <div class="pill" style="grid-column:1/3;border-color:var(--line);background:var(--card)"><b>🛡️ 防失控机制</b>
+        总轮数上限 30（<code>UI_VERIFY_MAX_EXECUTION_ROUNDS</code>）· 同一步 abnormal 上限 3 · 最近 3 次 normal 完全相同会插入【系统重复状态检测提醒】· 工具参数用 JSON Schema 校验，失败最多重问 3 次</div>
+    </div>
+  </div>
+</section>
+
+<section id="vision">
+  <h2>纯视觉定位 <span class="tag">截图 → 坐标 → 像素</span></h2>
+  <p class="lead">定位<b>不读控件树</b>，也不按文本或 id 查找。截图缩小到屏幕的 2/3 发给模型，以节省图像 token。系统提示告诉模型"屏幕是 999×999"，模型返回的 point 再按比例换算成物理像素，并钳制到 [1, W] × [1, H] 范围内。<b>点击左侧的手机屏幕试一试。</b></p>
+  <div class="coord">
+    <div>
+      <div class="phone" id="phone">
+        <div class="sb">12:45 · 状态栏（只在计算像素差时裁掉）</div>
+        <div style="padding:14px;font-size:12px;color:var(--muted)">
+          <div style="background:#26306a;border-radius:10px;padding:10px;margin-bottom:10px">🛒 商城</div>
+          <div style="background:#26306a;border-radius:10px;padding:10px;margin-bottom:10px">📦 我的订单</div>
+          <div style="background:#26306a;border-radius:10px;padding:10px;margin-bottom:10px">📱 手机分类</div>
+          <div style="background:#4f8cff;color:#fff;border-radius:10px;padding:10px;text-align:center;margin-top:150px">登 录</div>
+        </div>
+        <div class="dot" id="dot"></div>
+      </div>
+    </div>
+    <div>
+      <pre class="formula" id="coordOut">点击手机屏幕，查看坐标换算过程…</pre>
+      <div class="tbl" style="margin-top:14px"><table>
+        <tr><th>模型类型</th><th>送图尺寸</th><th>坐标系</th></tr>
+        <tr><td>通用模型（qwen3-vl 等）</td><td>屏幕 × 2/3</td><td>999 × 999 归一化</td></tr>
+        <tr><td>qwen2.5 系列</td><td>对齐到 28 的倍数，长边 ≤1424</td><td>位图像素</td></tr>
+      </table></div>
+    </div>
+  </div>
+  <h3 style="margin-top:30px">为什么 Qwen2.5 要特殊处理？</h3>
+  <p class="lead">启动时按模型名匹配 <code>/qwen2\.5/i</code>，选择两套不同的<b>定位器（imageLocator）</b>和<b>对话方式（chat）</b>。根本原因是：<b>不同模型训练时学到的"坐标语言"不一样</b>。</p>
+  <div class="grid">
+    <div class="card"><div class="ico">📐</div><h3>通用模型：相对坐标</h3><p>Qwen3-VL 等模型惯用<b>归一化坐标</b>（0~999 或 0~1000），与图片实际像素无关。所以送多大的图都可以，系统提示里写明"屏幕是 999×999"，回来的点按比例换算就行。</p><span class="hl">坐标 ÷ 999 × 屏幕宽高</span></div>
+    <div class="card star"><div class="ico">🎯</div><h3>Qwen2.5-VL：绝对像素坐标</h3><p>Qwen2.5-VL 训练时用的是<b>输入图片上的绝对像素坐标</b>，例如 <code>[322, 715]</code> 就表示它所看到的那张图上的第 322 列、第 715 行。如果告诉它"999×999"，反而和它的习惯冲突，点击位置会偏。所以<b>不加任何坐标提示</b>，直接把它输出的数当作位图像素。</p><span class="hl">坐标 ÷ 位图宽高 × 屏幕宽高</span></div>
+    <div class="card"><div class="ico">🧱</div><h3>为什么要对齐到 28 的倍数</h3><p>Qwen2.5-VL 的视觉编码器以 14px 为一个 patch，再把 2×2 个 patch 合并，所以图像边长要是 <b>28 的倍数</b>；不是的话，服务端会自己再缩放一次（smart_resize）。这样一来，模型看到的图和本地以为的位图尺寸就对不上，坐标就会算错。<b>本地预先缩放到 28 的倍数，并限制在 480~1424 之间</b>，服务端就不会再改动，模型坐标和本地位图一一对应。<small style="display:block;color:#64748b;margin-top:6px">（这里的"服务端二次缩放"是按 Qwen2.5-VL 的公开机制推断的设计意图；源码中能看到的是 28、480、1424 这三个常量和对应的缩放逻辑）</small></p></div>
+  </div>
+  <div class="loop" style="margin-top:16px">
+    <div class="stage">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
+        屏幕 <input id="qwW" type="number" value="1260" style="width:80px"> × <input id="qwH" type="number" value="2720" style="width:80px">
+        　模型输出点 <input id="qwX" type="number" value="322" style="width:70px">, <input id="qwY" type="number" value="700" style="width:70px">
+      </div>
+      <pre class="formula" id="qwOut" style="margin-top:12px"></pre>
+    </div>
+    <pre class="formula">// 源码中的两个定位器（简化）
+class GenericLocator {                 // 非 qwen2.5
+  getPrompt()   { return "屏幕宽高为999x999，坐标原点在左上角"; }
+  getSuitableImageSize([W,H]) { return [floor(W*2/3), floor(H*2/3)]; }
+  pointInterp([x,y], _img, [W,H]) {
+    return [clamp(round(x*W/999),1,W), clamp(round(y*H/999),1,H)];
+  }
+}
+class Qwen25Locator {
+  getPrompt()   { return ""; }           // 不给坐标约定
+  getSuitableImageSize([W,H]) {
+    let w = round(W/28)*28, h = round(H/28)*28;
+    if (max(w,h) > 1424) { s = max(w,h)/1424; w = floor(w/s/28)*28; h = floor(h/s/28)*28; }
+    if (min(w,h) <  480) { s = 480/min(w,h);  w = ceil(w*s/28)*28;  h = ceil(h*s/28)*28;  }
+    return [w, h];
+  }
+  pointInterp([x,y], [Iw,Ih], [W,H]) {   // Iw,Ih = 历史里最后一张图解码后的宽高
+    return [clamp(round(x*W/Iw),1,W), clamp(round(y*H/Ih),1,H)];
+  }
+}</pre>
+  </div>
+  <div class="tbl" style="margin-top:16px"><table>
+    <tr><th>差异点</th><th>通用模型</th><th>Qwen2.5（额外的兼容处理）</th></tr>
+    <tr><td>工具调用</td><td>OpenAI 标准 <code>tools</code> 字段，模型返回 <code>tool_calls</code></td><td>很多 Qwen2.5-VL 部署对 tools 字段支持不稳定 → 把工具说明<b>写进 system 文本</b>，要求模型输出 <code>{"tool_calls":[...]}</code> JSON，再从回复文本中<b>提取最后一个 JSON</b> 解析出来</td></tr>
+    <tr><td>非法工具名</td><td>JSON Schema 校验</td><td>模型编造 <code>terminate/finish</code> 等工具时，追加"[工具调用错误] 可用工具为…"后重试</td></tr>
+    <tr><td>启动应用</td><td>按提示词执行</td><td>第一步如果是 swipe（想在桌面上找图标），注入提示"请调用 startApp"后重试</td></tr>
+    <tr><td>原地打转</td><td>没有这项额外检测</td><td>另外检测<b>同一个操作连续 5 次</b>，注入"界面可能未变化，请重新分析"</td></tr>
+    <tr><td>空回复</td><td>—</td><td>模型返回空 message 时，按 2s、4s… 递增等待后重试</td></tr>
+  </table></div>
+
+  <h3 style="margin-top:30px">截图流水线：后台持续采集 + 稳定帧挑选</h3>
+  <div class="grid">
+    <div class="card"><div class="ico">📸</div><h3>后台截图循环</h3><p>真机连续执行 <code>snapshot_display -w -h</code>，在设备端缩放。模拟器（Emulator ≥ 26）用 <code>-screenshot</code> 直接取帧缓冲 PNG，按方向差旋转校正后转成 JPEG（质量 80）。</p></div>
+    <div class="card"><div class="ico">🧹</div><h3>动作前清缓存</h3><p>执行点击前先清空思考期间堆积的帧，保证模型下一轮看到的一定是<b>动作之后</b>的画面。</p></div>
+    <div class="card"><div class="ico">⏳</div><h3>3 秒稳定判定</h3><p>不断取帧，直到最近 800ms 内相邻帧像素差都小于 1%，或者满 3 秒。像素差计算时裁掉状态栏，避免时钟跳动被当成界面变化。</p></div>
+    <div class="card"><div class="ico">🎯</div><h3>关键帧挑选</h3><p>去掉开头没有变化的帧，按 500ms 间隔抽样，再去掉静止的重复帧。超过 6 帧时保留前 3 帧、最后 1 帧和中间变化最大的 2 帧，所以 Toast 也能被看到。</p></div>
+  </div>
+</section>
+
+<section id="history">
+  <h2>共享历史数组 <span class="tag">智能体之间的"黑板"</span></h2>
+  <p class="lead">一次 verifyUI 只有一份按时间追加的历史数组，所有智能体读的都是它。它不是对话记录，每个智能体发请求前才把它翻译成自己的消息。正常推进时，数组尾部按下面的顺序增长：</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px" id="histFlow"></div>
+  <div class="grid" style="margin-top:22px">
+    <div class="card"><h3 style="color:#22d3ee">image</h3><p><code>base64List</code>：按时间排列的多帧图像<br/><code>screenSize</code>：最后一帧对应的物理屏幕宽高</p></div>
+    <div class="card"><h3 style="color:#22c55e">status</h3><p><code>status / reason / progress / total</code><br/><code>abnormalRetryCount</code>：当前步骤的异常重试计数</p></div>
+    <div class="card"><h3 style="color:#4f8cff">action</h3><p><code>name</code>：tap / swipe / inputText / startApp / setFoldState …<br/><code>point</code>：保存的是<b>模型坐标</b>，不是物理像素</p></div>
+    <div class="card"><h3 style="color:#94a3b8">log</h3><p>这段时间的 hilog 原文，写入 <code>log.md</code> 并供 <code>getLog</code> 读取。<b>不发给任何智能体</b>，hilog 不参与对错判断。</p></div>
+  </div>
+</section>
+
+<section id="memory">
+  <h2>三类信号 + 步骤记忆 <span class="tag">结果怎么来</span></h2>
+  <div class="tbl"><table>
+    <tr><th>信号</th><th>来源</th><th>用来判断</th><th>不用来判断</th></tr>
+    <tr><td>👁️ 模型看图</td><td>StatusAgent</td><td>界面是否符合计划预期：点错、弹窗挡路、目标不存在</td><td>不读 hilog / faultlog</td></tr>
+    <tr><td>🧮 像素变化</td><td>动作后的等待 · FakeActionAgent</td><td>画面有没有变化，回放能否继续</td><td>不区分"点偏了"和"卡住了"</td></tr>
+    <tr><td>💥 新增 faultlog</td><td>任务结束时 checkError</td><td>appfreeze / cppcrash / jscrash 等，拉取到本机后把路径拼进 reason</td><td>不改变 success 的取值</td></tr>
+  </table></div>
+  <div class="grid" style="margin-top:22px">
+    <div class="card"><div class="ico">💾</div><h3>何时保存记忆</h3><p>状态为 error、中途没有出现 abnormal、freshStart=true，并且第一个动作是 startApp 时，把到最后一个 normal 为止的步骤保存到 <code>stepMemory/</code>（版本 1.0.2）。</p></div>
+    <div class="card"><div class="ico">▶️</div><h3>何时重放</h3><p>下一次同设备、同包名且 freshStart=true 时，由 InputMatcherAgent 选出匹配的记忆，FakeActionAgent 按原坐标和原时间间隔重放。</p></div>
+    <div class="card"><div class="ico">🛑</div><h3>何时停止重放</h3><p>每一步都拿新截图和旧截图做像素差，超过 0.01 就说明界面已经不同，立即交还给 ActionAgent，由模型继续接管。</p></div>
+  </div>
+  <h3 style="margin-top:26px">本机目录</h3>
+  <div class="tbl"><table>
+    <tr><th>目录（%TEMP%/ui-verification/）</th><th>写入者</th><th>内容</th></tr>
+    <tr><td>cache/&lt;id&gt;/</td><td>CLI</td><td>verify.log + screenshots/，供 <code>verify log/screenshot --id</code> 读取，最多保留 15 个</td></tr>
+    <tr><td>sequence-log-&lt;时间&gt;/</td><td>MCP</td><td>history.md、log.md、imgN.jpeg 运行记录，最多保留 50 个</td></tr>
+    <tr><td>stepMemory/</td><td>MCP</td><td>可重放的步骤记忆</td></tr>
+    <tr><td>faultlogs/</td><td>MCP</td><td>本次任务期间新出现的崩溃和冻屏日志</td></tr>
+  </table></div>
+</section>
+
+<section id="deep">
+  <h2>深入理解：四个关键问题 <span class="tag">Q &amp; A · 附例子</span></h2>
+  <p class="lead">下面结合 <code>ui-verification-mcp</code> 的源码，用具体例子说明几个容易困惑的点。</p>
+  <div class="controls" id="qTabs" style="margin-bottom:18px">
+    <button data-q="q1" class="active">Q1 启动阶段的"三件事并行"</button>
+    <button data-q="q2">Q2 计划匹配与步骤记忆</button>
+    <button data-q="q3">Q3 同一份历史，不同视角</button>
+    <button data-q="q4">Q4 截图流水线与"动作前清缓存"</button>
+    <button data-q="q5">Q5 key 与 sessionId</button>
+    <button data-q="q6">Q6 Action 能看到 Status 吗</button>
+    <button data-q="q7">Q7 截图间隔、diff、screenshot()</button>
+    <button data-q="q8">Q8 3 条 / 12 张图片上限</button>
+  </div>
+<div class="qpane" id="q5" hidden>
+  <h3>Q5："所有 key" 和 "同 sessionId" 是什么意思？</h3>
+  <p class="lead">记忆文件本质上是一个 JSON 字典：<b>一个文件 = 一个（会话, 设备, 包名）组合</b>；<b>文件里每个 key = 一次失败运行里已经走通的那段计划</b>。</p>
+  <div class="loop">
+    <pre class="formula">%TEMP%/ui-verification/stepMemory/
+└─ default_127_0_0_1_5555_com.example.verifydemo.json
+      ↑sessionId  ↑设备名(非字母数字→_)  ↑包名
+
+{
+  "version": "1.0.2",
+  "data": {
+    "1.启动应用成功 2.登录进入首页":                    [ ...历史A ],   ← key 0
+    "1.启动应用成功 2.登录进入首页 3.进入手机分类":     [ ...历史B ],   ← key 1
+    "1.启动应用成功 2.进入订单列表":                    [ ...历史C ]    ← key 2
+  }
+}
+
+key   = 那次失败运行里 SummaryAgent 写出的 successPart（文字）
+value = 截到最后一个 normal 为止的历史数组（动作的 reason 已清空）
+一个文件最多 10 个 key，超出时删除最早的</pre>
+    <div>
+      <pre class="formula">// 发给 InputMatcherAgent 的就是 Object.keys(data)
+user: 用户计划：1.启动应用 2.点击登录进入首页
+      3.点击商城→手机 4.点击 Mate70 看到详情页
+user: 已执行的计划列表：[
+  "1.启动应用成功 2.登录进入首页",            // 0 前缀匹配(2步)
+  "1.启动应用成功 2.登录进入首页 3.进入手机分类", // 1 前缀匹配(3步) ✔ 最长
+  "1.启动应用成功 2.进入订单列表"             // 2 第2步分叉 ✘
+]
+← get_match_result({ index: 1, reason: "前3步一致，取最长前缀" })
+
+→ 取 data[key1] 交给 FakeActionAgent，并把 key1 从文件中删除</pre>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>"所有 key" = 候选计划清单</h3><p>模型<b>只看 key 的文字</b>（几十个字），不看 value 中的截图和坐标。这样匹配请求非常便宜，拿到 index 之后程序再去取对应的 value 进行重放。</p></div>
+    <div class="card"><h3>sessionId 是什么</h3><p>它是 MCP 客户端在 <code>tools/call verifyUI</code> 参数中<b>可选传入</b>的会话标识，用来隔离不同会话（例如不同 AI 对话）的记忆。没有传入时取 <code>"default"</code>。</p></div>
+    <div class="card"><h3>devecocli verify 的情况</h3><p>CLI 调用 verifyUI 时只传了 <code>testPlan / bundleName / freshStart / device</code>，<b>没有传 sessionId</b>，所以命令行运行时始终是 <code>default</code>。也就是说：<b>同一台设备、同一个包名，所有 devecocli verify 运行共享同一个记忆文件</b>。</p></div>
+  </div>
+</div>
+<div class="qpane" id="q6" hidden>
+  <h3>Q6：ActionAgent 做动作前，能看到 StatusAgent 的结论吗？</h3>
+  <p class="lead"><b>要看是哪一轮、哪个分支：</b>normal 分支中<b>看不到本轮</b>的结论（因为是并行的），但<b>能看到之前所有轮</b>的结论；abnormal 分支中会<b>重新请求一次</b>，这时<b>能看到</b>本轮的 abnormal 结论。</p>
+  <div class="tbl"><table>
+    <tr><th>时刻</th><th>历史数组末尾</th><th>ActionAgent 请求时能看到什么</th></tr>
+    <tr><td>开局（第 0 次动作）</td><td>[img0]</td><td>只有首图，没有任何 status。由 <code>actionAgent.action()</code> 单独请求，<b>不与 Status 并行</b>，通常第一步是 startApp</td></tr>
+    <tr><td>第 1 轮 · normal</td><td>[img0, log, act0, <b>img1</b>]</td><td>img1 + 之前的动作。<b>本轮 status₁ 还在计算中，看不到</b>，与 StatusAgent 同时发出请求</td></tr>
+    <tr><td>　→ 写入</td><td>… img1, <b>status₁</b>, log, <b>act1</b></td><td>先写 status₁ 再写 act1，所以数组顺序看起来像"先判状态后动作"</td></tr>
+    <tr><td>第 2 轮 · normal</td><td>… act1, img2</td><td>能看到 <b>status₁</b>（上一轮的）和 img2；看不到 status₂</td></tr>
+    <tr><td>第 3 轮 · <b style="color:var(--warn)">abnormal</b></td><td>… img3, <b>status₃(abnormal)</b></td><td>预取的 act 作废，<b>重新调用一次</b> <code>actionAgent.action()</code>，此时<b>能看到 status₃ 的异常原因</b>，据此重新规划</td></tr>
+  </table></div>
+  <div class="loop" style="margin-top:16px">
+    <pre class="formula">// 主循环源码（简化）
+for (;;) {
+  if (last(history).type !== "image") history.push(stableImages());
+
+  const statusP = statusAgent.analyze(plan, history);   // 并行发出
+  const actionP = actionAgent.getNextAction(plan, history); // 并行发出
+  const status  = await statusP;
+  const action  = await actionP;          // 两者看到的是同一份 history
+
+  switch (status.status) {
+    case "normal":
+      history.push(status, log);
+      await actionAgent.executeAction(action);   // 直接用预取的
+      break;
+    case "abnormal":
+      history.push(status);                      // 先写入异常结论
+      await actionAgent.action(plan, history);   // 丢掉预取的，重新请求(能看到 abnormal)
+      break;
+    case "completed": case "error": /* 总结并返回 */
+  }
+}</pre>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card"><h3>为什么 normal 时不需要等 status？</h3><p>normal 表示"界面符合预期、继续下一步"。这时 ActionAgent 只看截图得出的下一步，和看到 status 之后得出的基本一致，所以可以先发起请求，省掉一次模型往返。</p></div>
+      <div class="card"><h3>为什么 abnormal 时必须重来？</h3><p>abnormal 表示"出问题了"，例如被弹窗挡住、点偏了。预取的动作没有考虑这个问题，所以要把异常原因写进历史，让 ActionAgent 看到后再规划。</p></div>
+    </div>
+  </div>
+</div>
+<div class="qpane" id="q7" hidden>
+  <h3>Q7：截图间隔多久？diff 怎么算？screenshot() 为什么能"取帧"又能"清缓存"？</h3>
+  <div class="grid">
+    <div class="card"><div class="ico">⏱️</div><h3>① 没有固定间隔，所以看起来随机</h3><p>采集循环是 <code>while(running){ 截一张; 放进 cache }</code>，<b>没有 sleep</b>，拍完立刻拍下一张。间隔完全取决于截一张图要多久：<br/>
+      <b>真机</b>：每张要串行执行 3~4 条 hdc 命令（读屏幕尺寸 → <code>snapshot_display</code> → <code>base64</code> 读回 → <code>rm</code>），受 USB/网络、设备负载、图片大小影响，通常几百毫秒，并且有波动。<br/>
+      <b>模拟器</b>：<code>Emulator -screenshot</code>，每 50ms 轮询一次 PNG 是否写完，再旋转、缩放、编码。<br/>
+      失败时：真机直接重试；模拟器等 500ms 再重试。</p></div>
+    <div class="card"><div class="ico">🧮</div><h3>② diff = 与"前一张"相比变化像素的占比</h3><p>两帧解码成 RGBA，<b>裁掉顶部状态栏</b>，逐像素比较（内置 <code>pixelmatch</code> 算法：YIQ 色差超过阈值 0.1 记为不同，忽略抗锯齿边缘像素）。<br/><code>diff = 不同的像素数 / 区域总像素数</code>，范围 0~1。<br/>
+      "前一张"指 cache 里的上一帧；如果 cache 刚被取空，真机会和<b>被取走的最后一帧</b>比较，模拟器始终和紧邻的上一帧比较。尺寸不同或解码失败时，diff 记为 1。</p></div>
+    <div class="card"><div class="ico">📦</div><h3>③ screenshot() = "整盒拿走"</h3><p>它不会去设备上拍照，只是把 <b>cache 整个数组拿走，并换成一个新的空数组</b>。所以"取帧"和"清缓存"是同一件事的两个方面。cache 为空时，每 100ms（模拟器 50ms）查看一次，最多等 5 秒。<br/>"动作前清缓存"就是调用一次它，并把返回值丢掉。</p></div>
+  </div>
+  <div class="loop" style="margin-top:16px">
+    <pre class="formula">// 真机采集器（源码简化）
+class ScreenCapture {
+  cache = [];
+  lastImageBeforeConsumed = null;
+
+  async startLoop() {
+    while (this.isRunning) {
+      const img = await harmony.singleScreenshot(); // 耗时不固定
+      this.addImageToCache(img);                    // 不 sleep，立刻下一张
+    }
+  }
+  addImageToCache(img) {
+    const prev = this.cache.length ? this.cache.at(-1)
+                                   : this.lastImageBeforeConsumed;
+    img.diff = prev ? pixelDiff(prev, img, {y: statusBarHeight}) : 1;
+    this.lastImageBeforeConsumed = null;
+    this.cache.push(img);
+  }
+  screenshot() {                  // 取走 = 清空
+    const taken = this.cache;
+    this.lastImageBeforeConsumed = taken.at(-1); // 留作下一张的比较基准
+    this.cache = [];
+    return taken;
+  }
+  waitUntilChange(ms) {           // 只看不取
+    // 等到 cache 中出现"晚于调用时刻且 diff>0.001"的帧，最多 ms 毫秒
+  }
+}</pre>
+    <pre class="formula">// 时间线示例（真机，数字为实测量级）
+t=0.00  拍 A   cache=[A(diff 1)]          ← 首帧无参照
+t=0.42  拍 B   cache=[A, B(0.0002)]
+t=0.95  拍 C   cache=[A, B, C(0.0001)]    ← 间隔 0.42 / 0.53，不均匀
+t=1.00  screenshot() → 返回 [A,B,C]，cache=[]，基准=C
+t=1.31  拍 D   cache=[D(与C比 0.0003)]
+t=1.70  执行 tap
+t=1.88  拍 E   cache=[D, E(0.2870)]       ← 界面开始变化
+        waitUntilChange 发现 E 的 diff>0.001 → 返回
+
+pixelDiff(上一帧, 当前帧):
+  1. 两图解码成 RGBA，裁掉 y < 状态栏高度 的部分
+  2. 逐像素计算 YIQ 色差，大于阈值且不是抗锯齿像素 → 计数+1
+  3. return 计数 / (宽 × 高)
+
+阈值：
+  waitUntilChange   真机 0.001 / 模拟器 0.01
+  稳定判定          0.01，并且持续 ≥ 800ms
+  关键帧去重        0.001
+  回放比对          0.01</pre>
+  </div>
+</div>
+<div class="qpane" id="q8" hidden>
+  <h3>Q8："最多 3 条带图消息、12 张图" 怎么理解？</h3>
+  <p class="lead">历史数组在内存中<b>完整保留</b>所有截图。但每次<b>发请求之前</b>，会对翻译好的 messages 做一次"裁剪"：只保留<b>最近几条</b>带图消息中的图片，更早消息里的图片替换成一段文字 <code>"已省略历史截图"</code>，<b>文字内容（状态、动作、原因）全部保留</b>。这样上下文长度和费用不会随轮数无限增长，模型仍然知道过去发生了什么，只是看不到旧图。</p>
+  <div class="loop">
+    <div class="stage">
+      <div class="controls" id="limTabs" style="margin-top:0">
+        <button data-l="a" class="active">例 A：5 条消息 / 7 张图</button>
+        <button data-l="b">例 B：3 条消息 / 14 张图</button>
+        <button data-l="c">例 C：3 条消息 / 9 张图</button>
+      </div>
+      <div id="limBox" style="margin-top:12px"></div>
+      <div class="fs-step" id="limNote"></div>
+    </div>
+    <pre class="formula">// 源码：每次调用模型前执行 limitImages(messages, 3, 12)
+function limitImages(msgs, maxMsgs = 3, maxImgs = 12) {
+  const imgMsgIdx = 含有 image_url 的消息下标;
+  const total = 这些消息里的图片总数;
+
+  // 两个条件都满足 → 不做处理
+  if (total <= maxImgs && imgMsgIdx.length <= maxMsgs) return msgs;
+
+  // 图片总数超过 12 → 只保留最近 2 条；否则保留最近 3 条
+  const keep = total > maxImgs ? maxMsgs - 1 : maxMsgs;
+  const drop = imgMsgIdx.slice(0, imgMsgIdx.length - keep);
+
+  return msgs.map((m, i) => drop.includes(i)
+    ? { ...m, content: m.content.map(p =>
+          p.type === "image_url" ? { type:"text", text:"已省略历史截图" } : p) }
+    : m);
+}
+
+// 只影响本次请求的 messages，不修改内存中的 history
+// verify screenshot / saveScreenshot 拿到的仍然是全部截图</pre>
+  </div>
+</div>
+<div class="qpane" id="q1">
+  <h3>Q1：InputValidationAgent "与 Home、匹配并行" 是什么意思？</h3>
+  <p class="lead">verifyUI 刚开始、进入主循环之前，有三件<b>互不依赖</b>的准备工作。它们不是一件做完再做下一件，而是同时启动，再用 <code>Promise.all</code> 一起等待。这样总耗时取决于最慢的那件，而不是三件相加。</p>
+  <div class="loop">
+    <div class="stage">
+      <div class="lane"><div class="name">① 计划校验</div><div class="track"><div class="seg on" style="left:0;width:62%;background:#0e7490">InputValidationAgent → 模型 ~2.5s</div></div></div>
+      <div class="lane"><div class="name">② 计划匹配</div><div class="track"><div class="seg on" style="left:0;width:48%;background:#7c3aed">InputMatcherAgent → 模型 ~2s</div></div></div>
+      <div class="lane"><div class="name">③ 按 Home</div><div class="track"><div class="seg on" style="left:0;width:40%;background:#15803d">uitest Home + 等 1.5s</div></div></div>
+      <div class="lane"><div class="name">Promise.all</div><div class="track"><div class="seg on" style="left:62%;width:38%;background:#b45309">三者都完成 → 截首图</div></div></div>
+      <p style="font-size:12.5px;color:var(--muted);margin:8px 0 0">串行约 2.5 + 2 + 1.5 ≈ 6 秒；并行约 2.5 秒，取决于最慢的那件。</p>
+    </div>
+    <pre class="formula">// ui-verification-mcp 源码（简化）
+async verifyUI(testPlan, bundleName, freshStart) {
+  const validate = inputValidationAgent.validate(testPlan);   // ①
+  const match = freshStart
+      ? inputMatcherAgent.match(testPlan, bundleName)          // ②
+      : Promise.resolve({ matchedHistory: null });
+  const home = (async () => {                                  // ③
+    if (freshStart) { await device.pressKey(["Home"]); await sleep(1500); }
+  })();
+
+  const [v, m] = await Promise.all([validate, match, home]);
+  if (v.status === "inValid") return { success:false, reason:"[计划校验失败]"+v.reason };
+
+  // 以上都通过后，才截第一张图，进入主循环
+}</pre>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>为什么能并行</h3><p>校验只读计划文本和设备信息；匹配只读本机的 stepMemory 文件；按 Home 只操作设备。三者没有数据依赖。</p></div>
+    <div class="card"><h3>代价</h3><p>即使计划最后被判为不合格，Home 也已经按下，匹配请求也已经发出。用一点浪费换取速度，计划不合格本来就是少数情况。</p></div>
+    <div class="card"><h3>--no-fresh-start 时</h3><p>②③ 直接跳过，只做校验，然后在当前画面上开始测试，不回桌面，也不复用记忆。</p></div>
+  </div>
+</div>
+<div class="qpane" id="q2" hidden>
+  <h3>Q2：InputMatcherAgent 怎么和之前的计划对比？记忆从哪来？</h3>
+  <p class="lead"><b>是的，记忆来自之前某一次执行失败的 <code>devecocli verify</code></b>（或通过 MCP 调用的 verifyUI）。它<b>只在失败时保存</b>：保存的是"走通的那一段前缀"，下次修完 bug 重测时，就能跳过已经验证过的前几步。</p>
+  <div class="grid">
+    <div class="card"><div class="ico">①</div><h3>第一次运行：失败并存档</h3><p>计划：<i>"1.启动应用 2.点击登录进入首页 3.点击商城→手机 4.点击 Mate 70 看到详情页"</i><br/>第 4 步判 error（详情页白屏）。同时满足以下条件：<br/>✔ 整个过程没有出现 abnormal<br/>✔ freshStart = true<br/>✔ 第一个动作是 startApp<br/>→ 把历史数组<b>截到最后一个 normal（第 3 步）为止</b>，以 SummaryAgent 写出的 <code>successPart</code> 为 key 保存。</p></div>
+    <div class="card"><div class="ico">②</div><h3>修复代码后重测：匹配</h3><p>开发者（或 AI）修好详情页，再次运行同样（或更长）的计划。InputMatcherAgent 读取 <b>同 sessionId + 同设备名 + 同包名</b> 的记忆文件（这几个词的含义见 Q5），把所有 key 作为"已执行计划列表"发给模型，问哪一条可以作为当前计划的<b>完全匹配或前缀匹配</b>。</p></div>
+    <div class="card"><div class="ico">③</div><h3>重放：FakeActionAgent</h3><p>模型返回 index=0，取出那份历史，<b>同时从文件中删除这条记忆</b>（一次性使用）。FakeActionAgent 按原坐标重放 startApp → tap 登录 → tap 商城 → tap 手机，每一步都和旧截图做像素差，一致就继续，不一致就停。之后由 ActionAgent 接手第 4 步。</p></div>
+  </div>
+  <div class="loop" style="margin-top:18px">
+    <pre class="formula">// 记忆文件：%TEMP%/ui-verification/stepMemory/
+//   default_127_0_0_1_5555_com.example.verifydemo.json
+{
+  "version": "1.0.2",
+  "data": {
+    // key = 上次的 successPart，value = 截到最后一个 normal 的历史数组
+    "1.启动应用成功 2.登录进入首页 3.进入手机分类商品列表": [
+      {"type":"image", ...},
+      {"type":"action","name":"startApp","bundleName":"...","reason":""},
+      {"type":"image", ...}, {"type":"status","status":"normal","progress":1},
+      {"type":"action","name":"tap","point":[500,880],"reason":""},
+      ...
+    ]
+  }
+}
+// 每个文件最多 10 条计划，目录最多 20 个文件；版本号不符的文件直接删除</pre>
+    <pre class="formula">// 发给模型的消息（不带截图，只比较文字）
+system: 你是鸿蒙应用测试计划匹配人员……
+  规则：1.完全匹配：全部步骤含义一致
+        2.前缀匹配：已执行计划 N 步 = 用户计划前 N 步
+  任一步的操作对象、目标页面不同都不算匹配；
+  有多个前缀时取最长的；拿不准就返回 -1
+user: 用户计划：1.启动应用 2.点击登录进入首页
+      3.点击商城→手机 4.点击 Mate 70 看到详情页
+user: 已执行的计划列表：["1.启动应用成功 2.登录进入首页
+      3.进入手机分类商品列表", "..."]
+
+← get_match_result({
+    "reason": "第1~3步含义一致，属于前缀匹配",
+    "index": 0
+  })</pre>
+  </div>
+  <div class="tbl" style="margin-top:16px"><table>
+    <tr><th>情况</th><th>会不会存档 / 复用</th></tr>
+    <tr><td>测试成功 completed</td><td>不存档。成功的流程无需"续跑"</td></tr>
+    <tr><td>中途出现过 abnormal</td><td>不存档。路径中有过重试，不保证能稳定复现</td></tr>
+    <tr><td>--no-fresh-start</td><td>既不存档也不匹配，因为起点画面不确定</td></tr>
+    <tr><td>换了设备或包名</td><td>文件名不同，不会命中</td></tr>
+    <tr><td>重放时界面变了（diff &gt; 1%）</td><td>立即停止重放，从当前画面交给 ActionAgent</td></tr>
+  </table></div>
+</div>
+<div class="qpane" id="q3" hidden>
+  <h3>Q3：同一份历史，不同视角，举个例子</h3>
+  <p class="lead">假设测试已经跑了一轮，内存里的<b>历史数组</b>是左边这样（只有 5 个元素）。每个智能体调用模型前，都把<b>同一个数组</b>翻译成自己的 <code>messages</code>。点右侧的按钮切换视角，看同一个元素变成了什么消息。<b>关键规律：自己产出的内容记为 assistant，别人产出的内容记为 user。</b></p>
+  <p class="lead" style="border-left:3px solid var(--warn);padding-left:12px">⚠️ 注意时间顺序：数组里 <code>[1] status</code> 排在 <code>[3] action</code> 前面，<b>并不代表这个 action 是看完 [1] 才做出的</b>。在 normal 分支里，二者是同一轮<b>并行</b>请求的，只是写入顺序为"先 status、后 action"。这里展示的是<b>下一轮</b>各智能体看到的完整历史。详见 Q6。</p>
+  <div class="loop">
+    <div class="stage">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">history[]（内存中的唯一真相）</div>
+      <div id="histItems"></div>
+    </div>
+    <div class="stage">
+      <div class="controls" id="viewTabs" style="margin-top:0">
+        <button data-v="action" class="active">ActionAgent 视角</button>
+        <button data-v="status">StatusAgent 视角</button>
+        <button data-v="summary">SummaryAgent 视角</button>
+      </div>
+      <div id="viewMsgs" style="margin-top:12px"></div>
+      <p id="viewNote" style="font-size:13px;color:var(--muted);margin:10px 0 0"></p>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>为什么要这样翻译？</h3><p>Chat 模型最擅长"延续自己的对话"。对 ActionAgent 来说，过去的点击就是它自己调用过的工具（assistant + tool_calls），状态判断是外部给它的反馈。对 StatusAgent 正好反过来：过去的判断是它自己的 returnStatus，点击则是别人告诉它"做了什么"。</p></div>
+    <div class="card"><h3>好处</h3><p>两个智能体都以为自己在进行一段连贯的多轮工具调用对话，模型的指令遵循和格式稳定性最好。同时只需要维护一份历史，不会出现两份对话记录不一致的问题。</p></div>
+    <div class="card"><h3>log 去哪了？</h3><p>hilog 也存在历史里（用于 getLog / verify log），但三个视角都会跳过它，所以日志内容不会影响模型对界面的判断。</p></div>
+  </div>
+</div>
+<div class="qpane" id="q4" hidden>
+  <h3>Q4：截图流水线举例，"动作前清缓存"是什么意思？</h3>
+  <p class="lead">后台截图循环<b>一直在拍</b>，拍到的帧都放进一个缓存数组。问题是：模型思考需要 2~5 秒，这段时间里缓存会堆积一堆<b>点击之前</b>的旧画面。如果不清掉，下一轮"取点击后的画面"时会把这些旧帧也一起取走，模型就可能把<b>点击前</b>的画面误当成<b>点击后</b>的结果。<br/>下面以"点击登录按钮"为例，按 ▶ 逐步播放。</p>
+  <div class="stage">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>后台截图缓存 cache[]</span><span id="fsClock">t = 0.0s</span></div>
+    <div class="filmstrip" id="film"></div>
+    <div class="controls">
+      <button id="fsNext">▶ 下一步</button>
+      <button id="fsAuto">⟳ 自动播放</button>
+      <button id="fsReset">↺ 重置</button>
+    </div>
+    <div class="fs-step" id="fsText"></div>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>采集与取用分离</h3><p>采集循环只管往 cache 末尾追加帧，并计算和上一帧的像素差 diff。<code>screenshot()</code> 一次性取走全部帧并清空 cache。<code>waitUntilChange()</code> 只查看 cache，不取走。</p></div>
+    <div class="card"><h3>清缓存 = 一次"丢弃式"取用</h3><p>动作执行前调用一次 <code>screenshot()</code>，返回值<b>不写入历史</b>，唯一目的是让 cache 从"点击前最后一张"之后重新开始计数。</p></div>
+    <div class="card"><h3>为什么还要多帧？</h3><p>点击之后可能先弹出 Toast，1 秒后消失。只取最后一帧就会漏掉。所以最后送给模型的是<b>按时间排列、去重后的几帧</b>，提示词也要求"任一帧出现 Toast 即算出现"。</p></div>
+  </div>
+</div>
+</section>
+
+<section id="usage">
+  <h2>使用方式 <span class="tag">QUICK START</span></h2>
+  <div class="grid">
+    <div class="card"><h3>1. 配置多模态模型</h3><pre class="formula">devecocli verify init \
+  --base-url "https://dashscope.aliyuncs.com/compatible-mode/v1" \
+  --model-name "qwen3-vl-plus" \
+  --api-key "sk-xxxx"</pre></div>
+    <div class="card"><h3>2. 运行校验</h3><pre class="formula">devecocli verify --test-plan "1.启动应用 2.点击登录进入首页
+3.点击商城→手机，看到商品列表 4.点击第一个商品，看到详情页" \
+  --bundle-name com.example.verifydemo \
+  --device 127.0.0.1:5555</pre></div>
+    <div class="card"><h3>3. 查看日志与截图</h3><pre class="formula">devecocli verify log --id &lt;id&gt; --search-keywords Error
+devecocli verify screenshot --id &lt;id&gt; \
+  --save-path C:\shots</pre></div>
+    <div class="card"><h3>参数速查</h3><p>
+      <code>--test-plan</code> 必填，最长 3000 字<br/>
+      <code>--bundle-name</code> 不填时读取 AppScope/app.json5<br/>
+      <code>--device</code> 设备名或序列号，连了多台设备时必填<br/>
+      <code>--no-fresh-start</code> 不按 Home，也不复用历史步骤</p></div>
+  </div>
+  <h3 style="margin-top:26px">与传统 UI 自动化对比</h3>
+  <div class="tbl"><table class="compare">
+    <tr><th>维度</th><th>传统脚本（uitest / Hypium）</th><th>devecocli verify</th></tr>
+    <tr><td>用例编写</td><td class="n">写代码、选择器、断言</td><td class="y">一段自然语言</td></tr>
+    <tr><td>元素定位</td><td class="n">依赖控件树、id、文本</td><td class="y">看图定位，不依赖控件树</td></tr>
+    <tr><td>界面改版</td><td class="n">脚本容易失效</td><td class="y">按新截图自动适配</td></tr>
+    <tr><td>异常恢复</td><td class="n">需要手写 try/重试</td><td class="y">abnormal 自动重新规划</td></tr>
+    <tr><td>与 AI 编程结合</td><td class="n">需要额外封装</td><td class="y">原生 MCP，IDE 可直接调用</td></tr>
+    <tr><td>执行速度</td><td class="y">快，确定性强</td><td class="n">依赖模型延迟（已通过并行和记忆重放优化）</td></tr>
+  </table></div>
+</section>
+
+<footer>
+  devecocli verify 原理介绍 · 内容依据 <code>deveco-cli/packages/cli/src/ui-verification</code> 与 <code>ui-verification-mcp</code> 实现整理
+</footer>
+<script src="app.js"></script>
+<script src="app2.js"></script>
+<script src="deep.js"></script>
+</body>
+</html>
